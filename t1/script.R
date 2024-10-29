@@ -11,48 +11,37 @@ header_reduced = unique(sapply(header, function(item){
   strsplit(item, " ")[[1]][1]
 }))
 
-# inicializa a matriz com os dados principais
-mat = rep(0, times=length(data))
-# inicializa a matriz com os dados reduzidos
-mat_reduced = rep(0, times=length(data))
-
 # preenche a matriz principal
-for(i in 1:length(header)){
+df = sapply(header, function(item){
   vec = rep(0, times=length(data)) # cria um vetor com tamanho dos dados
   for(j in 1:length(data)){
-    if(header[i] %in% unlist(data[j][[1]]["produtos"])) vec[j] = 1
+    if(item %in% unlist(data[j][[1]]["produtos"])) vec[j] = 1
     # se o item i do header esta na linha j, preencher o indice j do vetor com 1
   }
-  mat = rbind(mat, vec) v
-}
+  vec
+})
 
 # preenche a matriz reduzida
-for(i in 1:length(header_reduced)){
+df_reduced = sapply(header_reduced, function(item){
   vec = rep(0, times=length(data)) # cria um vetor com tamanho dos dados
   for(j in 1:length(data)){
     linha = sapply(unlist(data[j][[1]]["produtos"]), function(item2){
       strsplit(item2, " ")[[1]][1]
     }) # salva somente os tipos dos produtos da linha j
-    if(header_reduced[i] %in% linha) vec[j] = 1
+    if(item %in% linha) vec[j] = 1
     # se o item i do header esta na linha j, preencher o indice j do vetor com 1
   }
-  mat_reduced = rbind(mat_reduced, vec) # adiciona o vetor a matriz
-}
-
-df = t(mat[-1,])
-colnames(df) = header
-df_reduced = t(mat_reduced[-1,])
-colnames(df_reduced) = header_reduced
-# roda o algoritmo apriori nos dados principais
-rules = apriori(df, parameter=list(supp=0.05, conf=0.4), appearance=list())
-inspect(rules)
-# roda o algoritmo apriori nos dados reduzidos
-rules_reduced = apriori(df_reduced, parameter=list(supp=0.1, conf=0.58), appearance=list())
-inspect(rules_reduced)
+  vec
+})
 
 # cria a lista de doces
 doces = unique(unlist(sapply(header, function(item){
   if(strsplit(item, " ")[[1]][1] == "Doce") item
+})))
+
+# cria a lista not_doces
+not_doces = unique(unlist(sapply(header, function(item){
+  if(strsplit(item, " ")[[1]][1] != "Doce") item
 })))
 
 # cria a matriz de doces
@@ -78,13 +67,29 @@ for(i in 1:length(header)){
   }
 }
 
-# cria a lista not_doces
-not_doces = unique(unlist(sapply(header, function(item){
-  if(strsplit(item, " ")[[1]][1] != "Doce") item
-})))
+df_doces = sapply(not_doces, function(item){
+  vec = rep(0, times=length(data)) # cria um vetor com tamanho dos dados
+  for(j in 1:length(data)){
+    if(item %in% unlist(data[j][[1]]["produtos"])) vec[j] = 1
+    # se o item i do header esta na linha j, preencher o indice j do vetor com 1
+  }
+  vec
+})
 
-df_doces = (t(mat_doces[-1,]))
-colnames(df_doces) = append("Doce", not_doces)
+df_doces = cbind(df_doces, df_reduced[,"Doce"])
+colnames(df_doces) = append(not_doces, "Doce")
 
-inspect(subset(apriori(df_doces, parameter = list(supp = 0.05, conf = 0.4)),
-               subset = (rhs %in% "Doce")))
+# roda o algoritmo apriori nos dados principais
+rules = apriori(df, parameter=list(supp=0.05, conf=0.4))
+
+# roda o algoritmo apriori nos dados reduzidos
+rules_reduced = apriori(df_reduced, parameter=list(supp=0.1, conf=0.58))
+
+
+rules_doce = subset(apriori(df_doces,
+                            parameter = list(supp = 0.05, conf = 0.4)),
+                    subset = (rhs %in% "Doce"))
+
+inspect(rules)
+inspect(rules_reduced)
+inspect(rules_doce)
